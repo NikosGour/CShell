@@ -29,11 +29,14 @@ void update_current_working_dir()
 }
 #pragma endregion
 
+void print_nav()
+{
+    printf("%s:%s>\n",current_user, current_working_directory);
+}
 int main(int argc, char const *argv[])
 {
-    struct passwd* x = getpwuid(getuid()); 
     update_current_user();
     update_current_working_dir();
-    printf("%s:%s>\n",current_user, current_working_directory);
+    print_nav();
     return 0;
 }

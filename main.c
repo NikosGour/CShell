@@ -5,6 +5,7 @@
 #include<sys/types.h>
 #include<pwd.h>
 
+
 #pragma region "Global Variables"
 char current_working_directory[1024];
 char current_user[1024];

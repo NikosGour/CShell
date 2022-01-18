@@ -1,6 +1,7 @@
 #include<stdio.h>
 #include<stdlib.h>
 #include<string.h>
+#include<stdbool.h>
 #include<unistd.h>
 #include<sys/types.h>
 #include<pwd.h>
@@ -47,6 +48,13 @@ void print(const char* format, ...)
 
     write(1, str, strlen(str));
 }
+
+void get_u_input( char* u_input , size_t size)
+{
+    read(0, u_input, size);
+    u_input[strlen(u_input)-1] = '\0';
+    printf("!%s!\n", u_input);
+}
 void print_nav()
 {
     update_current_user();
@@ -67,11 +75,13 @@ int cd(char* path)
         perror("cd error");
         return -1;
     }
+    update_current_working_dir();
     return 0;
 }
 
 void init()
 {
+    //She sells CShells
     update_current_user();
     strcat(home_dir, current_user);
     chdir(home_dir);
@@ -82,15 +92,15 @@ void init()
 int main(int argc, char const *argv[])
 {
     init();
-    print_nav();
-    char dir[1024];
-    // fgets(dir, sizeof(dir), stdin);
-    read(0, dir, sizeof(dir));
-    dir[strlen(dir)-1] = '\0';
-    printf("!%s!\n", dir);
-    cd(dir);
-    update_current_working_dir();
-    print_nav();
+    while (true)
+    {    
+        print_nav();
+        char u_input[1024];
+        get_u_input(u_input , sizeof(u_input));
+        cd(u_input);
+    }
+    
+
 
     return 0;
 }

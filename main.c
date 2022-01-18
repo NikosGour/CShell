@@ -42,16 +42,25 @@ void update_current_working_dir()
 }
 #pragma endregion
 
-void print(const char* format, ...)
+/**
+ * @brief  Custom printf function using the write system call
+ */
+void _print(const char* format, ...)
 {
+    // string to hold the final string to be printed
     char str[MAX_LINE_LENGTH];
     va_list args;
     va_start(args, format);
+
+    // format the string
     vsprintf(str,format, args);
+    
     va_end(args);
 
+    // write the string to the console
     write(1, str, strlen(str));
 }
+
 
 void get_u_input( char* u_input , size_t size)
 {
@@ -65,7 +74,7 @@ void get_u_input( char* u_input , size_t size)
     u_input[strlen(u_input) - 1] = '\0';
 
     //debug
-    printf("!%s!\n", u_input);
+    // printf("!%s!\n", u_input);
 }
 void print_nav()
 {
@@ -74,7 +83,7 @@ void print_nav()
     update_current_working_dir();
 
     // Print current working directory and user in bash style
-    print("%s:%s>",current_user, current_working_directory);
+    _print("%s:%s> ",current_user, current_working_directory);
     
     // backup plan:
     // printf("%s:%s>",current_user, current_working_directory);
@@ -137,16 +146,14 @@ int main(int argc, char const *argv[])
             char* command = strtok(u_input, " ");
             if (command == NULL)
             {
-                print("ERROR: No such command `%s`\n", command);
+                printf("ERROR: Command can't be empty\n");
             }
-            
-            print("ERROR: No such command `%s`\n", command);
+            else
+            {
+                printf("ERROR: No such command `%s`\n", command);
+            }
         }
-      
-        
     }
     
-
-
     return 0;
 }

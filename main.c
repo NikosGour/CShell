@@ -24,7 +24,6 @@ void update_current_user()
     char *user_name = pw->pw_name;
     if (strcmp(user_name, "root") == 0)
     {
-        
         printf("Can't run this program as root.\n");
         exit(0);
     }
@@ -153,6 +152,9 @@ int main(int argc, char const *argv[])
                 printf("ERROR: No such command `%s`\n", command);
             }
         }
+
+        // execl("/bin/whoami", "whoami", NULL);
+        // execl("/bin/ls", "ls", "-la", NULL);
     }
     
     return 0;

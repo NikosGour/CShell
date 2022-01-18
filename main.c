@@ -7,20 +7,24 @@
 #include<pwd.h>
 #include<stdarg.h>
 
+#define MAX_LINE_LENGTH 1024 * 2
+
 #pragma region "Global Variables"
-char current_working_directory[1024];
-char current_user[1024];
-char home_dir[1024] = "/home/";
+char current_working_directory[MAX_LINE_LENGTH];
+char current_user[MAX_LINE_LENGTH];
+char home_dir[MAX_LINE_LENGTH] = "/home/";
 
 #pragma endregion
 
 #pragma region get_current user/directory
 void update_current_user()
 {
+    
     struct passwd *pw = getpwuid(getuid());
     char *user_name = pw->pw_name;
     if (strcmp(user_name, "root") == 0)
     {
+        
         printf("Can't run this program as root.\n");
         exit(0);
     }
@@ -40,7 +44,7 @@ void update_current_working_dir()
 
 void print(const char* format, ...)
 {
-    char str[1024];
+    char str[MAX_LINE_LENGTH];
     va_list args;
     va_start(args, format);
     vsprintf(str,format, args);
@@ -51,14 +55,25 @@ void print(const char* format, ...)
 
 void get_u_input( char* u_input , size_t size)
 {
+    //fill u_input with '\0'
+    memset(u_input, '\0', size);
+
+    //read user input
     read(0, u_input, size);
-    u_input[strlen(u_input)-1] = '\0';
+
+    //remove newline character
+    u_input[strlen(u_input) - 1] = '\0';
+
+    //debug
     printf("!%s!\n", u_input);
 }
 void print_nav()
 {
+    // Update current working directory and user variables
     update_current_user();
     update_current_working_dir();
+
+    // Print current working directory and user in bash style
     print("%s:%s>",current_user, current_working_directory);
     
     // backup plan:
@@ -72,9 +87,10 @@ int cd(char* path)
 {
     if(chdir(path) != 0)
     {
-        perror("cd error");
+        printf("ERROR: No file or directory named `%s`\n", path);
         return -1;
     }
+    
     update_current_working_dir();
     return 0;
 }
@@ -92,12 +108,42 @@ void init()
 int main(int argc, char const *argv[])
 {
     init();
+    
     while (true)
     {    
+        
         print_nav();
-        char u_input[1024];
+        char u_input[MAX_LINE_LENGTH];
         get_u_input(u_input , sizeof(u_input));
-        cd(u_input);
+        if (strcmp(u_input, "exit") == 0)
+        {
+            break;
+        }
+        else if (strstr(u_input, "cd") != NULL)
+        {
+            char path[MAX_LINE_LENGTH];
+            char* token = strtok(u_input, " ");
+            token = strtok(NULL, " ");
+            if (token == NULL)
+            {
+                printf("ERROR: No path specified\n");
+                continue;
+            }
+            strcpy(path, token);            
+            cd(path);
+        }
+        else
+        {
+            char* command = strtok(u_input, " ");
+            if (command == NULL)
+            {
+                print("ERROR: No such command `%s`\n", command);
+            }
+            
+            print("ERROR: No such command `%s`\n", command);
+        }
+      
+        
     }
     
 

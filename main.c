@@ -152,9 +152,6 @@ int main(int argc, char const *argv[])
                 printf("ERROR: No such command `%s`\n", command);
             }
         }
-
-        // execl("/bin/whoami", "whoami", NULL);
-        // execl("/bin/ls", "ls", "-la", NULL);
     }
     
     return 0;

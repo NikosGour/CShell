@@ -1,11 +1,12 @@
-#include<stdio.h>
-#include<stdlib.h>
-#include<string.h>
-#include<stdbool.h>
-#include<unistd.h>
-#include<sys/types.h>
-#include<pwd.h>
-#include<stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdbool.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <pwd.h>
+#include <stdarg.h>
 
 #define MAX_LINE_LENGTH 1024 * 2
 
@@ -16,10 +17,10 @@ char home_dir[MAX_LINE_LENGTH] = "/home/";
 
 #pragma endregion
 
-#pragma region get_current user/directory
+#pragma region get_current user / directory
 void update_current_user()
 {
-    
+
     struct passwd *pw = getpwuid(getuid());
     char *user_name = pw->pw_name;
     if (strcmp(user_name, "root") == 0)
@@ -31,20 +32,19 @@ void update_current_user()
 }
 void update_current_working_dir()
 {
-    char* pwd = getcwd(current_working_directory, sizeof(current_working_directory));
-    if(pwd == NULL)
+    char *pwd = getcwd(current_working_directory, sizeof(current_working_directory));
+    if (pwd == NULL)
     {
         perror("getcwd error");
         exit(1);
     }
-    
 }
 #pragma endregion
 
 /**
  * @brief  Custom printf function using the write system call
  */
-void _print(const char* format, ...)
+void _print(const char *format, ...)
 {
     // string to hold the final string to be printed
     char str[MAX_LINE_LENGTH];
@@ -52,28 +52,27 @@ void _print(const char* format, ...)
     va_start(args, format);
 
     // format the string
-    vsprintf(str,format, args);
-    
+    vsprintf(str, format, args);
+
     va_end(args);
 
     // write the string to the console
     write(1, str, strlen(str));
 }
 
-
-void get_u_input( char* u_input , size_t size)
+void get_u_input(char *u_input, size_t size)
 {
-    //fill u_input with '\0'
+    // fill u_input with '\0'
     memset(u_input, '\0', size);
 
-    //read user input
+    // read user input
     read(0, u_input, size);
 
-    //remove newline character
+    // remove newline character
     u_input[strlen(u_input) - 1] = '\0';
 
-    //debug
-    // printf("!%s!\n", u_input);
+    // debug
+    //  printf("!%s!\n", u_input);
 }
 void print_nav()
 {
@@ -82,8 +81,8 @@ void print_nav()
     update_current_working_dir();
 
     // Print current working directory and user in bash style
-    _print("%s:%s> ",current_user, current_working_directory);
-    
+    _print("%s:%s> ", current_user, current_working_directory);
+
     // backup plan:
     // printf("%s:%s>",current_user, current_working_directory);
     // char x[1024];
@@ -91,38 +90,37 @@ void print_nav()
     // write(1, x, strlen(x));
 }
 
-int cd(char* path)
+int cd(char *path)
 {
-    if(chdir(path) != 0)
+    if (chdir(path) != 0)
     {
         printf("ERROR: No file or directory named `%s`\n", path);
         return -1;
     }
-    
+
     update_current_working_dir();
     return 0;
 }
 
 void init()
 {
-    //She sells CShells
+    // She sells CShells
     update_current_user();
     strcat(home_dir, current_user);
     chdir(home_dir);
     update_current_working_dir();
 }
 
-
 int main(int argc, char const *argv[])
 {
     init();
-    
+
     while (true)
-    {    
-        
+    {
+
         print_nav();
         char u_input[MAX_LINE_LENGTH];
-        get_u_input(u_input , sizeof(u_input));
+        get_u_input(u_input, sizeof(u_input));
         if (strcmp(u_input, "exit") == 0)
         {
             break;
@@ -130,29 +128,66 @@ int main(int argc, char const *argv[])
         else if (strstr(u_input, "cd") != NULL)
         {
             char path[MAX_LINE_LENGTH];
-            char* token = strtok(u_input, " ");
+            char *token = strtok(u_input, " ");
             token = strtok(NULL, " ");
             if (token == NULL)
             {
                 printf("ERROR: No path specified\n");
                 continue;
             }
-            strcpy(path, token);            
+            strcpy(path, token);
             cd(path);
         }
         else
         {
-            char* command = strtok(u_input, " ");
+            // initialize status variable
+            int status;
+
+            char *command = strtok(u_input, " ");
             if (command == NULL)
             {
-                printf("ERROR: Command can't be empty\n");
+                printf("ERROR: No command specified\n");
+                continue;
+            }
+
+            char *args[30];
+            args[0] = command;
+            int i = 1;
+            while (true)
+            {
+                char *token = strtok(NULL, " ");
+                if (token == NULL)
+                {
+                    args[i] = NULL;
+                    break;
+                }
+                args[i] = token;
+                i++;
+            }
+
+            int pid = fork();
+            if (pid == 0)
+            {
+                execvp(command, args);
+                perror("execvp");
+                exit(255);
+            }
+            else if (pid > 0)
+            {
+                wait(&status);
+
+                if (WIFEXITED(status))
+                {
+                    printf("Exit status: %d\n", WEXITSTATUS(status));
+                }
             }
             else
             {
-                printf("ERROR: No such command `%s`\n", command);
+                perror("fork");
+                exit(1);
             }
         }
     }
-    
+
     return 0;
 }

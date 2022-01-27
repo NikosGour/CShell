@@ -30,18 +30,24 @@ typedef struct
 
 void update_current_user()
 {
+    // Get current user
     struct passwd *pw = getpwuid(getuid());
     char *user_name = pw->pw_name;
+
+    // Can't run as root
     if (strcmp(user_name, "root") == 0)
     {
         printf("Can't run this program as root.\n");
         exit(0);
     }
+
+    // Update current user
     strcpy(current_user, user_name);
 }
 
 void update_current_working_dir()
 {
+    // Get current working directory
     char *pwd = getcwd(current_working_directory, sizeof(current_working_directory));
     if (pwd == NULL)
     {
@@ -52,9 +58,11 @@ void update_current_working_dir()
 
 void log_action()
 {
-
+    // Get current time
     time_t t = time(NULL);
     struct tm tm = *localtime(&t);
+
+    // Log the time and command to the log file
     fprintf(log_file, "%d:%d:%d = %s\n", tm.tm_hour, tm.tm_min, tm.tm_sec, u_input);
     fflush(log_file);
 }
@@ -87,12 +95,13 @@ void print_nav()
 
 void *find_match(void *arg)
 {
-    thread_data *data = (thread_data *)arg;
+    thread_data *data = (thread_data* )arg;
 
     // !FOR DEBUGING!
     // printf("%s\n", (char* ) data->line);
     // printf("%s\n", (char* ) data->pattern);
-
+    
+    // Find the pattern in the line
     if (strstr(data->line, data->pattern) != NULL)
     {
         printf("%s\n", data->line);
@@ -107,6 +116,7 @@ void *find_match(void *arg)
 
 int cd(char *path)
 {
+    // Change directory
     if (chdir(path) != 0)
     {
         printf("ERROR: No file or directory named `%s`\n", path);
@@ -123,43 +133,58 @@ bool run_command()
     int status;
 
     char *command = strtok(u_input, " ");
+
+    // Check if the command is empty 
     if (command == NULL)
     {
         printf("ERROR: No command specified\n");
         return true;
     }
 
-    char *args[30];
+    // Initialize the arguments
+    char* args[30];
     args[0] = command;
     int i = 1;
     while (true)
     {
-        char *token = strtok(NULL, " ");
+        // Get the next argument
+        char* token = strtok(NULL, " ");
         if (token == NULL)
         {
+            // No more arguments
             args[i] = NULL;
             break;
         }
+        // Add the argument to the array
         args[i] = token;
         i++;
     }
-
+    
     int pid = fork();
+    // Child process
     if (pid == 0)
     {
+        // Execute the command
         execvp(command, args);
+
+        // If the command is not found
         fprintf(stderr, "ERROR: Command not found `%s`\n", command);
         exit(255);
     }
+    // Parent process
     else if (pid > 0)
     {
+        // Wait for the child process to finish
         wait(&status);
+
 
         if (WIFEXITED(status))
         {
+            // Print the exit status
             printf("Exit status: %d\n", WEXITSTATUS(status));
         }
     }
+    // Error
     else
     {
         perror("fork");
@@ -170,23 +195,29 @@ bool run_command()
 }
 
 bool mygrep()
-{
+{   
+    // discard var is used to discard the first word of the input
     char *discard = strtok(u_input, " ");
+
+    // Get the pattern
     char *pattern = strtok(NULL, " ");
     if (pattern == NULL)
     {
         fprintf(stderr, "ERROR: No pattern specified\n");
         return true;
     }
-    printf("%s\n", pattern);
+    // printf("%s\n", pattern);
+
+    // Get the file path
     char *path = strtok(NULL, " ");
     if (path == NULL)
     {
         fprintf(stderr, "ERROR: No path specified\n");
         return true;
     }
-    printf("%s\n", path);
+    // printf("%s\n", path);
 
+    // Open the file
     FILE *fp = fopen(path, "r");
     if (fp == NULL)
     {
@@ -196,6 +227,7 @@ bool mygrep()
 
     int num_of_lines = 1;
     char ch;
+    // Count the number of lines in the file
     do
     {
         ch = fgetc(fp);
@@ -209,20 +241,24 @@ bool mygrep()
         }
 
     } while (ch != EOF);
+
     // !FOR DEBUGING!
     // printf("\n");
     // printf("%d\n", num_of_lines);
     // /\ this is 0 based
 
+    // Create a buffer to store the lines
     fseek(fp, 0, SEEK_SET);
     char lines[num_of_lines][MAX_LINE_LENGTH];
 
+    // Initialize the buffer
     for (int i = 0; i < num_of_lines; i++)
     {
         memset(lines[i], '\0', MAX_LINE_LENGTH);
     }
-    int i = 0;
 
+    // Read the lines into the buffer !DOES NOT SUPPORT CARRIAGE RETURNS!
+    int i = 0;
     do
     {
         ch = fgetc(fp);
@@ -240,6 +276,7 @@ bool mygrep()
             strncat(lines[i], &ch, 1);
         }
     } while (ch != EOF);
+
     // !FOR DEBUGING!
     // printf("\n");
     // for(int i = 0; i < num_of_lines; i++)
@@ -254,18 +291,22 @@ bool mygrep()
     thread_data thread_data_array[num_of_lines];
 
     printf("\n");
+
+    // Create a thread for each line
     for (int i = 0; i < num_of_lines; i++)
     {
         thread_data_array[i].line = lines[i];
         thread_data_array[i].pattern = pattern;
-        pthread_create(&threads[i], NULL, &find_match, (void *)&thread_data_array[i]);
+        pthread_create(&threads[i], NULL, &find_match, (void* )&thread_data_array[i]);
     }
 
+    // Wait for all the threads to finish
     for (int i = 0; i < num_of_lines; i++)
     {
         pthread_join(threads[i], NULL);
     }
-
+    
+    // Print the number of matches
     printf("\n");
     printf("[%d matches found]\n", pattern_count);
 
@@ -275,8 +316,9 @@ bool mygrep()
 
 void init()
 {
-    // She sells CShells
     update_current_user();
+
+    // Get the current working directory and create the log file
     update_current_working_dir();
     log_file = fopen(".myshlog", "w");
     if (log_file == NULL)
@@ -284,10 +326,13 @@ void init()
         printf("Error opening log file!\n");
         exit(1);
     }
-
+    
+    // Get the home directory and change to it
     strcat(home_dir, current_user);
     chdir(home_dir);
     update_current_working_dir();
+
+    // Mutex initialization
     pthread_mutex_init(&pattern_count_mutex, NULL);
 }
 
@@ -298,14 +343,17 @@ int main()
     while (true)
     {
 
+        // print the prompt and get the input and log it
         print_nav();
         get_u_input();
         log_action();
 
+        // Exit the program
         if (strcmp(u_input, "exit") == 0)
         {
             break;
         }
+        // Change the directory
         else if (strncmp(u_input, "cd ", 3) == 0)
         {
             strtok(u_input, " ");
@@ -318,6 +366,7 @@ int main()
             }
             cd(path);
         }
+        // Mygrep
         else if (strncmp(u_input, "mygrep", 6) == 0)
         {
             bool failed = mygrep(u_input);
@@ -326,6 +375,7 @@ int main()
                 continue;
             }
         }
+        // Linux/Unknown Command
         else
         {
             bool failed = run_command(u_input);
@@ -335,7 +385,8 @@ int main()
             }
         }
     }
-
+    
+    // Close everything and exit
     pthread_mutex_destroy(&pattern_count_mutex);
     fclose(log_file);
 

@@ -264,7 +264,7 @@ bool mygrep()
         ch = fgetc(fp);
 
         // !FOR DEBUGING!
-        printf("%c", ch);
+        // printf("%c", ch);
 
         if (ch == '\n' || ch == EOF)
         {

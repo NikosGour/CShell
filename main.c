@@ -7,6 +7,7 @@
 #include <sys/wait.h>
 #include <pwd.h>
 #include <stdarg.h>
+#include <pthread.h>
 
 #define MAX_LINE_LENGTH 1024 * 2
 
@@ -41,37 +42,18 @@ void update_current_working_dir()
 }
 #pragma endregion
 
-/**
- * @brief  Custom printf function using the write system call
- */
-void _print(const char *format, ...)
-{
-    // string to hold the final string to be printed
-    char str[MAX_LINE_LENGTH];
-    va_list args;
-    va_start(args, format);
-
-    // format the string
-    vsprintf(str, format, args);
-
-    va_end(args);
-
-    // write the string to the console
-    write(1, str, strlen(str));
-}
-
 void get_u_input(char *u_input, size_t size)
 {
     // fill u_input with '\0'
     memset(u_input, '\0', size);
 
     // read user input
-    read(0, u_input, size);
+    fgets(u_input, size , stdin);
 
     // remove newline character
     u_input[strlen(u_input) - 1] = '\0';
 
-    // debug
+    // !FOR DEBUGING!
     //  printf("!%s!\n", u_input);
 }
 void print_nav()
@@ -81,13 +63,7 @@ void print_nav()
     update_current_working_dir();
 
     // Print current working directory and user in bash style
-    _print("%s:%s> ", current_user, current_working_directory);
-
-    // backup plan:
-    // printf("%s:%s>",current_user, current_working_directory);
-    // char x[1024];
-    // sprintf(x, "%s:%s>",current_user, current_working_directory);
-    // write(1, x, strlen(x));
+    printf("%s:%s> ", current_user, current_working_directory);
 }
 
 int cd(char *path)
@@ -111,6 +87,12 @@ void init()
     update_current_working_dir();
 }
 
+void *test(void *arg)
+{
+    printf("%s\n", (char *)arg);
+    return NULL;
+}
+
 int main(int argc, char const *argv[])
 {
     init();
@@ -125,7 +107,7 @@ int main(int argc, char const *argv[])
         {
             break;
         }
-        else if (strstr(u_input, "cd") != NULL)
+        else if (strncmp(u_input, "cd ", 3) == 0)
         {
             char path[MAX_LINE_LENGTH];
             char *token = strtok(u_input, " ");
@@ -137,6 +119,90 @@ int main(int argc, char const *argv[])
             }
             strcpy(path, token);
             cd(path);
+        }
+        else if (strncmp(u_input, "mygrep", 6) == 0)
+        {
+            strtok(u_input, " ");
+            char *pattern = strtok(NULL, " ");
+            if (pattern == NULL)
+            {
+                fprintf(stderr, "ERROR: No pattern specified\n");
+                continue;
+            }
+            char *path = strtok(NULL, " ");
+            if (path == NULL)
+            {
+                fprintf(stderr, "ERROR: No path specified\n");
+                continue;
+            }
+
+            FILE *fp = fopen(path, "r");
+            if (fp == NULL)
+            {
+                fprintf(stderr, "ERROR: No file or directory named `%s`\n", path);
+                continue;
+            }
+
+            int num_of_lines = 0;
+            char ch;
+            do
+            {
+                ch = fgetc(fp);
+            
+                // !FOR DEBUGING!
+                // printf("%c", ch);
+
+                if (ch == '\n')
+                {
+                    num_of_lines++;
+                }
+              
+            }while(ch != EOF);
+            // !FOR DEBUGING!
+            // printf("\n");
+            // printf("%d\n", num_of_lines); 
+            // /\ this is 0 based
+
+            fseek(fp, 0, SEEK_SET);
+            char lines[num_of_lines + 1][MAX_LINE_LENGTH];
+            for (int i = 0; i < num_of_lines + 1; i++)
+            {
+                memset(lines[i], '\0', MAX_LINE_LENGTH);
+            }
+            int i = 0;
+
+            do
+            {
+                ch = fgetc(fp);
+
+                // !FOR DEBUGING!
+                // printf("%c", ch);
+
+                if (ch == '\n' || ch == EOF)
+                {
+                    strcat(lines[i], "\0");
+                    i++;
+                }
+                else
+                {
+                    strcat(lines[i], &ch);
+                }
+            }while(ch != EOF);
+            // !FOR DEBUGING!
+            // printf("\n");
+
+        
+            
+            for(int i = 0; i < num_of_lines + 1; i++)
+            {
+                    printf("~%s~", lines[i]);
+                    printf("\n");
+            }
+            printf("\n");
+            // pthread_t thread;
+            // pthread_create(&thread, NULL, &test , a );
+            // pthread_join(thread, NULL);
+            fclose(fp);
         }
         else
         {
@@ -169,7 +235,7 @@ int main(int argc, char const *argv[])
             if (pid == 0)
             {
                 execvp(command, args);
-                perror("execvp");
+                fprintf(stderr, "ERROR: Command not found `%s`\n" , command);
                 exit(255);
             }
             else if (pid > 0)

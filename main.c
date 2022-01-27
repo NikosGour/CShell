@@ -15,6 +15,8 @@
 char current_working_directory[MAX_LINE_LENGTH];
 char current_user[MAX_LINE_LENGTH];
 char home_dir[MAX_LINE_LENGTH] = "/home/";
+int pattern_count = 0;
+pthread_mutex_t pattern_count_mutex;
 
 #pragma endregion
 
@@ -41,6 +43,13 @@ void update_current_working_dir()
     }
 }
 #pragma endregion
+
+typedef struct
+{
+    char* line;
+    char* pattern;
+
+} thread_data;
 
 void get_u_input(char *u_input, size_t size)
 {
@@ -85,13 +94,27 @@ void init()
     strcat(home_dir, current_user);
     chdir(home_dir);
     update_current_working_dir();
+    pthread_mutex_init(&pattern_count_mutex, NULL); 
 }
 
-void *test(void *arg)
+void* find_match(void *arg)
 {
-    printf("%s\n", (char *)arg);
-    return NULL;
+    thread_data *data = (thread_data*)arg;
+
+    // !FOR DEBUGING!
+    // printf("%s\n", (char* ) data->line);
+    // printf("%s\n", (char* ) data->pattern);
+
+    if (strstr(data->line, data->pattern) != NULL)
+    {
+        printf("%s\n", data->line);
+
+        pthread_mutex_lock(&pattern_count_mutex);
+        pattern_count++;
+        pthread_mutex_unlock(&pattern_count_mutex);
+    }    
 }
+
 
 int main(int argc, char const *argv[])
 {
@@ -129,12 +152,14 @@ int main(int argc, char const *argv[])
                 fprintf(stderr, "ERROR: No pattern specified\n");
                 continue;
             }
+            // printf("%s\n", pattern);
             char *path = strtok(NULL, " ");
             if (path == NULL)
             {
                 fprintf(stderr, "ERROR: No path specified\n");
                 continue;
             }
+            // printf("%s\n", path);
 
             FILE *fp = fopen(path, "r");
             if (fp == NULL)
@@ -143,7 +168,7 @@ int main(int argc, char const *argv[])
                 continue;
             }
 
-            int num_of_lines = 0;
+            int num_of_lines = 1;
             char ch;
             do
             {
@@ -164,8 +189,8 @@ int main(int argc, char const *argv[])
             // /\ this is 0 based
 
             fseek(fp, 0, SEEK_SET);
-            char lines[num_of_lines + 1][MAX_LINE_LENGTH];
-            for (int i = 0; i < num_of_lines + 1; i++)
+            char lines[num_of_lines][MAX_LINE_LENGTH];
+            for (int i = 0; i < num_of_lines; i++)
             {
                 memset(lines[i], '\0', MAX_LINE_LENGTH);
             }
@@ -190,18 +215,33 @@ int main(int argc, char const *argv[])
             }while(ch != EOF);
             // !FOR DEBUGING!
             // printf("\n");
+            // for(int i = 0; i < num_of_lines; i++)
+            // {
+            //         printf("~%s~", lines[i]);
+            //         printf("\n");
+            // }
+            // printf("\n");
 
-        
-            
-            for(int i = 0; i < num_of_lines + 1; i++)
-            {
-                    printf("~%s~", lines[i]);
-                    printf("\n");
-            }
+            pattern_count = 0;
+            pthread_t threads[num_of_lines];
+            thread_data thread_data_array[num_of_lines];
+
             printf("\n");
-            // pthread_t thread;
-            // pthread_create(&thread, NULL, &test , a );
-            // pthread_join(thread, NULL);
+            for(int i = 0; i < num_of_lines; i++)
+            {
+                thread_data_array[i].line = lines[i];
+                thread_data_array[i].pattern = pattern;
+                pthread_create(&threads[i], NULL, &find_match, ( void* ) &thread_data_array[i]);
+            }
+
+            for(int i = 0; i < num_of_lines; i++)
+            {
+                pthread_join(threads[i], NULL);
+            }
+
+            printf("\n");
+            printf("[%d matches found]\n", pattern_count);
+
             fclose(fp);
         }
         else
@@ -255,5 +295,6 @@ int main(int argc, char const *argv[])
         }
     }
 
+    pthread_mutex_destroy(&pattern_count_mutex); 
     return 0;
 }
